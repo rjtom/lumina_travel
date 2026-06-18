@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Lumina Travel - A proactive AI Trip Concierge that plans, researches, and books your trips with Human-in-the-Loop confirmations.">
+    <title>Lumina Travel — AI Trip Concierge</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="bg-blob blob-1"></div>
+    <div class="bg-blob blob-2"></div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <div class="logo-section">
+                <h1><i class="fa-solid fa-compass"></i> LUMINA TRAVEL</h1>
+                <p>Proactive AI Trip Concierge & Companion</p>
+            </div>
+
+        </header>
+
+        <!-- Main Dashboard -->
+        <div class="dashboard-grid">
+            <!-- Left Side: Chat Interface -->
+            <div class="chat-panel">
+                <div class="chat-history" id="chat-history">
+                    <!-- Welcome Message -->
+                    <div class="message agent">
+                        <p><strong>Bonjour! I am Lumina, your AI Trip Concierge.</strong></p>
+                        <p>I take full ownership of your travel lifecycle. I can research destinations, inspect events/weather, find accommodations, and book listings (with your approval!).</p>
+                        <p>Where would you like to travel next? You can select a suggestion below or type your own query.</p>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="chat-input-area">
+                    <div class="input-wrapper">
+                        <input type="text" id="chat-input" class="chat-input" placeholder="Ask about destinations, find hotels, or request to book..." autocomplete="off">
+                        <button id="send-btn" class="send-btn">
+                            <span>Send</span>
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Real-time Context Sidebars -->
+            <div class="info-sidebar">
+                <!-- Bookings Widget -->
+                <div class="sidebar-card bookings-card flex-grow">
+                    <h2><i class="fa-solid fa-suitcase"></i> Active Bookings</h2>
+                    <div class="bookings-list" id="bookings-list">
+                        <div class="empty-state" id="bookings-empty">
+                            <i class="fa-solid fa-hotel" style="font-size: 28px; opacity: 0.3; margin-bottom: 8px;"></i>
+                            <p>No active reservations yet.</p>
+                            <p style="font-size: 11px; margin-top: 4px;">Ask me to book a room to start.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Suggestions / Interactive Testing Widget -->
+                <div class="sidebar-card suggestions-card">
+                    <h2><i class="fa-solid fa-wand-magic-sparkles"></i> Test Suggestions</h2>
+                    <div class="suggestions-grid">
+                        <button class="suggestion-btn" onclick="sendSuggestion('Research Tokyo weather, local events, and travel norms')">
+                            <i class="fa-solid fa-magnifying-glass"></i> Research Tokyo Info
+                        </button>
+                        <button class="suggestion-btn" onclick="sendSuggestion('Find hotels in Tokyo under $250')">
+                            <i class="fa-solid fa-bed"></i> Find Tokyo Hotels
+                        </button>
+                        <button class="suggestion-btn" onclick="sendSuggestion('Book Shibuya Glass Oasis Hotel (hotel-tokyo-1)')">
+                            <i class="fa-solid fa-check-double"></i> Book Shibuya Oasis
+                        </button>
+                        <button class="suggestion-btn" onclick="sendSuggestion('Give me recommendations for Paris')">
+                            <i class="fa-solid fa-map"></i> Recommend Paris
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client-side Logic -->
+    <script>
+        const chatHistory = document.getElementById('chat-history');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const bookingsList = document.getElementById('bookings-list');
+        const bookingsEmpty = document.getElementById('bookings-empty');
+
+        // Initial Load
+        updateBookings();
+
+        // Send Button / Enter key event listeners
+        sendBtn.addEventListener('click', handleSend);
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') handleSend();
+        });
+
+        function sendSuggestion(text) {
+            chatInput.value = text;
+            handleSend();
+        }
+
+        async function handleSend() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            // Clear Input
+            chatInput.value = '';
+
+            // Render User Message
+            appendMessage('user', text);
+            scrollToBottom();
+
+            // Set up placeholder for Agent message
+            const agentMsgDiv = appendMessage('agent', '');
+            
+            // Create container for thought block
+            const thoughtContainer = document.createElement('div');
+            thoughtContainer.className = 'thought-container';
+            thoughtContainer.style.display = 'none'; // Hidden initially
+            thoughtContainer.innerHTML = `
+                <div class="thought-header" onclick="toggleThought(this)">
+                    <span><i class="fa-solid fa-brain"></i> Agent Thoughts</span>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </div>
+                <div class="thought-content"></div>
+            `;
+            agentMsgDiv.appendChild(thoughtContainer);
+
+            // Create container for text content
+            const contentContainer = document.createElement('div');
+            contentContainer.className = 'agent-response-content';
+            contentContainer.innerHTML = `<div class="loading-dots"><span></span><span></span><span></span></div>`;
+            agentMsgDiv.appendChild(contentContainer);
+            scrollToBottom();
+
+            try {
+                // Call streaming API
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to reach server');
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                let thoughtText = '';
+                let contentText = '';
+                let cleanedContent = false;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const rawData = line.slice(6).trim();
+                                if (!rawData) continue;
+                                const eventData = JSON.parse(rawData);
+
+                                if (eventData.type === 'thought') {
+                                    thoughtContainer.style.display = 'block';
+                                    const thoughtContent = thoughtContainer.querySelector('.thought-content');
+                                    thoughtText += eventData.content;
+                                    thoughtContent.textContent = thoughtText;
+                                } else if (eventData.type === 'content') {
+                                    if (!cleanedContent) {
+                                        contentContainer.innerHTML = '';
+                                        cleanedContent = true;
+                                    }
+                                    contentText += eventData.content;
+                                    contentContainer.innerHTML = formatMarkdown(contentText);
+                                } else if (eventData.type === 'bookings_update') {
+                                    renderBookings(eventData.bookings);
+                                } else if (eventData.type === 'error') {
+                                    contentContainer.innerHTML = `<span style="color: var(--accent-error); font-weight:600;"><i class="fa-solid fa-triangle-exclamation"></i> ${eventData.content}</span>`;
+                                }
+                            } catch (e) {
+                                console.error('Error parsing SSE event:', e);
+                            }
+                        }
+                    }
+                    scrollToBottom();
+                }
+
+                // If content is empty and we finished, remove loader
+                if (!cleanedContent) {
+                    contentContainer.innerHTML = '<em>Task complete.</em>';
+                }
+
+            } catch (error) {
+                console.error(error);
+                contentContainer.innerHTML = `<span style="color: var(--accent-error); font-weight:600;"><i class="fa-solid fa-triangle-exclamation"></i> Connection failed: ${error.message}</span>`;
+            }
+            
+            updateBookings();
+            scrollToBottom();
+        }
+
+        function appendMessage(sender, text) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+            if (sender === 'user') {
+                msgDiv.textContent = text;
+            }
+            chatHistory.appendChild(msgDiv);
+            return msgDiv;
+        }
+
+        function toggleThought(header) {
+            const content = header.nextElementSibling;
+            const icon = header.querySelector('.fa-chevron-down, .fa-chevron-up');
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                icon.className = 'fa-solid fa-chevron-up';
+            } else {
+                content.style.display = 'none';
+                icon.className = 'fa-solid fa-chevron-down';
+            }
+        }
+
+        function scrollToBottom() {
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        async function updateBookings() {
+            try {
+                const res = await fetch('/api/bookings');
+                const data = await res.json();
+                renderBookings(data.bookings);
+            } catch (err) {
+                console.error('Error fetching bookings:', err);
+            }
+        }
+
+        function renderBookings(bookings) {
+            if (!bookings || bookings.length === 0) {
+                bookingsEmpty.style.display = 'flex';
+                // Clean old items except empty state
+                const items = bookingsList.querySelectorAll('.booking-item');
+                items.forEach(el => el.remove());
+                return;
+            }
+
+            bookingsEmpty.style.display = 'none';
+            // Clear current list items
+            const oldItems = bookingsList.querySelectorAll('.booking-item');
+            oldItems.forEach(el => el.remove());
+
+            bookings.forEach(b => {
+                const div = document.createElement('div');
+                div.className = 'booking-item';
+                div.innerHTML = `
+                    <div class="booking-id">${b.booking_id}</div>
+                    <div class="booking-name">${b.name}</div>
+                    <div class="booking-meta">
+                        <span>Price: $${b.price}/night</span>
+                        <span class="booking-status">${b.status}</span>
+                    </div>
+                `;
+                bookingsList.appendChild(div);
+            });
+        }
+
+        // Minimal markdown formatter
+        function formatMarkdown(text) {
+            let formatted = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/### (.*?)\n/g, '<h3>$1</h3>')
+                .replace(/## (.*?)\n/g, '<h2>$1</h2>')
+                .replace(/\n/g, '<br>');
+
+            // Bullet points
+            formatted = formatted.replace(/- (.*?)<br>/g, '<li>$1</li>');
+            formatted = formatted.replace(/(<li>.*?<\/li>)/g, '<ul>$1</ul>');
+            // Deduplicate consecutive <ul> lists
+            formatted = formatted.replace(/<\/ul><ul>/g, '');
+
+            return formatted;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+#!/bin/bash
+# Script to start the Lumina Travel Concierge backend server
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$PROJECT_DIR"
+
+# Ensure we include parent directory in PYTHONPATH so imports like 'from lumina_travel.agent import ...' work
+export PYTHONPATH="$(dirname "$PROJECT_DIR"):$PYTHONPATH"
+
+echo "=== Starting Lumina Travel Concierge Infrastructure ==="
+
+# Check if port 8002 is already in use
+if lsof -i :8002 >/dev/null 2>&1; then
+  echo "⚠️ Warning: Port 8002 is already in use. Server might already be running."
+else
+  echo "🚀 Starting FastAPI Server on port 8002..."
+  uv run uvicorn app:app --host 0.0.0.0 --port 8002 > server.log 2>&1 &
+  echo "   Server logs are writing to server.log"
+fi
+
+echo "⌛ Waiting for services to initialize..."
+sleep 3
+
+echo "=== Status ==="
+if lsof -i :8002 >/dev/null 2>&1; then
+  echo "✅ Lumina Travel Concierge is UP on http://localhost:8002"
+else
+  echo "❌ Lumina Travel Concierge FAILED to start. Check server.log"
+fi
+echo "=================================================="
