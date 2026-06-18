@@ -4,6 +4,10 @@
 
 Lumina Travel is a proactive, end-to-end AI Trip Concierge designed to plan, research, and book travels while keeping humans in the loop for financial security. It is built with the **Google Antigravity SDK** and powered by **Gemini 3.5 Flash**.
 
+> [!WARNING]
+> **Experimental & Imaginative/Fictional Disclaimer**: 
+> This project is completely experimental. All features, data, and integrations are entirely imaginative/fictional and designed solely for demonstration, prototyping, and educational purposes. Licensed under the [MIT License](LICENSE) (including this disclaimer).
+
 It handles the entire travel lifecycle: researching weather and cultural highlights, finding accommodations, and conducting safe checkouts for bookings with explicit confirmation check-gates.
 
 ---
