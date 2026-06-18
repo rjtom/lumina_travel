@@ -1,6 +1,6 @@
 # Lumina Travel — Proactive AI Trip Concierge
 
-[![Watch Travel Concierge Walkthrough](https://cdn.loom.com/sessions/thumbnails/7ef79d0ab08240db95e4abafe165b8e2-with-play.gif)](https://www.loom.com/share/7ef79d0ab08240db95e4abafe165b8e2)
+[![Watch Travel Concierge Walkthrough](https://cdn.loom.com/sessions/thumbnails/7ef79d0ab08240db95e4abafe165b8e2-eeaff243ade97c18.gif)](https://www.loom.com/share/7ef79d0ab08240db95e4abafe165b8e2)
 
 Lumina Travel is a proactive, end-to-end AI Trip Concierge designed to plan, research, and book travels while keeping humans in the loop for financial security. It is built with the **Google Antigravity SDK** and powered by **Gemini 3.5 Flash**.
 
