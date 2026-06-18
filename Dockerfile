@@ -17,7 +17,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv pip install --system --no-cache -r pyproject.toml
 
 # Copy app code
-COPY lumina_travel /app/lumina_travel
+COPY . /app/lumina_travel/
 
 # Expose port 8080 (Cloud Run default)
 EXPOSE 8080
